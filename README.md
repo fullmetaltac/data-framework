@@ -36,8 +36,19 @@ python -m pip install -r requirements.txt
 Run the tests:
 
 ```powershell
-python -m unittest discover -s tests -v
+python -m pytest -v
 ```
+
+The generator unit tests do not require infrastructure:
+
+```powershell
+python -m pytest tests/test_generator.py -v
+```
+
+Schema, quality, and business tests query PostgreSQL and require the
+infrastructure to be running. They verify the `events` table structure,
+temperature completeness and range, `(device_id, event_time)` uniqueness,
+five-minute freshness, device count, and allowed statuses.
 
 ## 2. Start the Infrastructure
 
@@ -214,4 +225,16 @@ src/
     database_models.py # SQLAlchemy model for the events table
     repository.py      # Persisting events
     main.py            # Consumer entry point
+tests/
+  schema/
+    test_columns.py
+  quality/
+    test_no_nulls.py
+    test_duplicates.py
+    test_ranges.py
+    test_freshness.py
+  business/
+    test_device_count.py
+    test_status_distribution.py
+  test_generator.py
 ```
