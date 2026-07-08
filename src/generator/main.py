@@ -1,5 +1,6 @@
-import os
 import time
+
+from src.common.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC
 
 from .generator import EventGenerator
 from .producer import EventProducer
@@ -8,8 +9,8 @@ from .producer import EventProducer
 def main() -> None:
     generator = EventGenerator()
     producer = EventProducer(
-        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-        topic=os.getenv("KAFKA_TOPIC", "events"),
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        topic=KAFKA_TOPIC,
     )
 
     try:

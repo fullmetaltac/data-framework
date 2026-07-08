@@ -1,12 +1,3 @@
-from datetime import datetime
+from src.common.models import Event
 
-from pydantic import BaseModel
-
-
-class Event(BaseModel):
-    device_id: str
-    event_time: datetime
-    temperature: float
-    humidity: float
-    pressure: float
-    status: str
+__all__ = ["Event"]

@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timezone
 
-from .models import Event
+from src.common.models import Event
 
 
 class EventGenerator:

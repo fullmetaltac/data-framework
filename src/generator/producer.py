@@ -1,6 +1,6 @@
 from kafka import KafkaProducer
 
-from .models import Event
+from src.common.models import Event
 
 
 class EventProducer:
