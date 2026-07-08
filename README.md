@@ -42,7 +42,7 @@ python -m pytest -v
 The generator unit tests do not require infrastructure:
 
 ```powershell
-python -m pytest tests/test_generator.py -v
+python -m pytest tests/unit -v
 ```
 
 Schema, quality, and business tests query PostgreSQL and require the
@@ -226,6 +226,8 @@ src/
     repository.py      # Persisting events
     main.py            # Consumer entry point
 tests/
+  unit/
+    test_generator.py
   schema/
     test_columns.py
   quality/
@@ -236,5 +238,4 @@ tests/
   business/
     test_device_count.py
     test_status_distribution.py
-  test_generator.py
 ```
