@@ -50,6 +50,37 @@ infrastructure to be running. They verify the `events` table structure,
 temperature completeness and range, `(device_id, event_time)` uniqueness,
 five-minute freshness, device count, and allowed statuses.
 
+## Declarative Data Quality API
+
+Reusable checks live in `src.quality`; project tests only declare their rules:
+
+```python
+Check.range("temperature", -40, 80).run(db_connection)
+Check.freshness("event_time", minutes=5).run(db_connection)
+```
+
+Several rules can be composed into a table specification:
+
+```python
+(
+    Table("events")
+    .not_null("device_id")
+    .range("temperature", -40, 80)
+    .unique("device_id", "event_time")
+    .run(db_connection)
+)
+```
+
+The column-focused expectation DSL is also available:
+
+```python
+expect(table="events").column("temperature").to_be_between(
+    -40, 80, db_connection
+)
+```
+
+If no connection is supplied, `run()` uses the configured `DATABASE_URL`.
+
 ## 2. Start the Infrastructure
 
 Start PostgreSQL, Kafka, Kafka UI, and MinIO:

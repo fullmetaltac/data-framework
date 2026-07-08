@@ -1,9 +1,7 @@
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection
+
+from src.quality import Check
 
 
 def test_temperature_has_no_nulls(db_connection: Connection) -> None:
-    null_count = db_connection.scalar(
-        text("SELECT COUNT(*) FROM events WHERE temperature IS NULL")
-    )
-
-    assert null_count == 0, f"Found {null_count} events with NULL temperature"
+    Check.not_null("temperature").run(db_connection)
