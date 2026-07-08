@@ -33,6 +33,12 @@ Install the dependencies:
 python -m pip install -r requirements.txt
 ```
 
+Run the tests:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
 ## 2. Start the Infrastructure
 
 Start PostgreSQL, Kafka, Kafka UI, and MinIO:
@@ -82,7 +88,9 @@ python -m src.generator.main
 ```
 
 The generator creates one event per second and sends it to the `events` Kafka
-topic.
+topic. By default, 5% of events are intentionally corrupted. Possible defects
+include null or out-of-range measurements, an empty device ID, future or old
+timestamps, and duplicates.
 
 The generator terminal will display the created events:
 
@@ -151,6 +159,7 @@ The application uses the following default values:
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
 | `KAFKA_TOPIC` | `events` |
 | `KAFKA_CONSUMER_GROUP` | `events-consumer` |
+| `GENERATOR_INVALID_PROBABILITY` | `0.05` |
 | `DATABASE_URL` | `postgresql+psycopg://postgres:postgres@localhost:5432/dataqa` |
 
 Override them before starting an application when necessary:
@@ -159,6 +168,14 @@ Override them before starting an application when necessary:
 $env:KAFKA_TOPIC = "events"
 $env:KAFKA_CONSUMER_GROUP = "events-consumer-local"
 python -m src.consumer.main
+```
+
+`GENERATOR_INVALID_PROBABILITY` must be between `0` and `1`. Set it to `0` for
+only valid events or to `1` to corrupt every generated event.
+
+```powershell
+$env:GENERATOR_INVALID_PROBABILITY = "0.05"
+python -m src.generator.main
 ```
 
 ## Stop the Infrastructure
