@@ -10,6 +10,7 @@ def valid_message() -> dict[str, Any]:
     return {
         "event_id": "11111111-1111-1111-1111-111111111111",
         "device_id": "sensor-01",
+        "sequence_id": 1,
         "event_time": "2026-01-01T00:00:00Z",
         "temperature": 20.0,
         "humidity": 50.0,

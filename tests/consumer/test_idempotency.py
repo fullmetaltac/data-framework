@@ -15,6 +15,7 @@ def test_processing_the_same_event_twice_stores_it_once(
 ) -> None:
     event = Event(
         device_id="idempotency-test-sensor",
+        sequence_id=1,
         event_time=datetime.now(timezone.utc),
         temperature=21.0,
         humidity=45.0,

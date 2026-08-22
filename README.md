@@ -3,9 +3,11 @@
 A small data pipeline for generating and storing events:
 
 ```text
-Generator -> Kafka -> Consumer -> PostgreSQL
-                          |
-                          +--> events-dlq (invalid messages)
+Generator -> Kafka -> Consumer -> PostgreSQL -> Schema checks
+                          |                      Quality checks
+                          v                      Business checks
+                      events-dlq                 Reconciliation
+                  (invalid messages)              Sequence report
 ```
 
 The generator creates events and sends them to Kafka. The consumer receives the
@@ -13,9 +15,11 @@ messages, validates them using the Pydantic `Event` model, and stores them in th
 `events` table through SQLAlchemy. A message that fails validation is never
 silently dropped: it is published to the `events-dlq` topic instead, alongside
 the validation error, a timestamp, and the source topic, so it can be inspected
-or replayed later. See [End-to-End Reconciliation](#end-to-end-reconciliation)
-and [Dead-Letter Queue](#dead-letter-queue) below for how the pipeline verifies
-that no event is lost.
+or replayed later. See [End-to-End Reconciliation](#end-to-end-reconciliation),
+[Dead-Letter Queue](#dead-letter-queue), and
+[Out-of-Order and Missing Sequence Detection](#out-of-order-and-missing-sequence-detection)
+below for how the pipeline verifies that no event is lost, corrupted, or
+delivered out of order without being noticed.
 
 ## Requirements
 
@@ -177,6 +181,45 @@ consumer.process_message(event)  # -> "duplicate", still 1 row in PostgreSQL
 `tests/consumer/test_idempotency.py` exercises this against a real PostgreSQL
 connection: it calls `process_message` with the same event twice and asserts
 `events` still contains exactly one row for that `event_id`.
+
+## Out-of-Order and Missing Sequence Detection
+
+Every `Event` also carries a `sequence_id`: a counter kept per `device_id` in
+the generator, incremented each time that specific device produces a reading.
+Two devices' counters are independent, and because `event_time` is not the
+same thing as `sequence_id`, the generator's existing `future_event` and
+`old_event` defects already model devices whose clock is wrong while their
+sequence counter keeps climbing normally — a realistic IoT failure mode.
+
+`src.quality.sequence_analysis.analyze_sequences` takes `(device_id,
+sequence_id)` pairs and, per device, reports:
+
+- **missing** — gaps in the contiguous range between the lowest and highest
+  sequence seen (for example, an event the consumer rejected and routed to
+  the DLQ instead of storing).
+- **duplicates** — a sequence number that shows up more than once.
+- Arrival order is irrelevant to this analysis: sequence `[1, 2, 4, 3]` is
+  reported as complete, because IDs 1-4 are all present, even though 3 and 4
+  arrived out of order.
+
+This is pure, dependency-free logic and is unit tested directly in
+`tests/unit/test_sequence_analysis.py` — no infrastructure required. To run it
+against real data:
+
+```powershell
+python -m src.quality.sequence_report
+```
+
+```text
+sensor-04: received 2, expected 3, missing [144], duplicates []
+```
+
+The script queries `(device_id, sequence_id)` from PostgreSQL, runs the
+analysis per device, prints one line per device, and exits with status `1` if
+any device has a gap or a duplicate. Note that because the consumer already
+deduplicates on `event_id` (see above), a duplicate `sequence_id` reaching
+PostgreSQL is expected to be rare in steady state — the check still guards
+against it as a second, independent line of defense.
 
 ## 2. Start the Infrastructure
 
@@ -356,16 +399,19 @@ src/
     dlq.py             # Publishing invalid messages to events-dlq
     main.py            # Consumer entry point / process_message routing
   quality/
-    checks.py          # Declarative Check/CheckResult building blocks
-    dsl.py             # Table/expect DSL built on top of checks.py
-    reconciliation.py  # Pure source-vs-target event_id comparison
-    reconcile.py       # Reads Kafka + PostgreSQL and runs reconciliation
+    checks.py             # Declarative Check/CheckResult building blocks
+    dsl.py                # Table/expect DSL built on top of checks.py
+    reconciliation.py     # Pure source-vs-target event_id comparison
+    reconcile.py          # Reads Kafka + PostgreSQL and runs reconciliation
+    sequence_analysis.py  # Pure per-device missing/duplicate sequence detection
+    sequence_report.py    # Reads PostgreSQL and runs the sequence analysis
 tests/
   unit/
     test_generator.py
     test_quality_dsl.py
     test_reconciliation.py
     test_consumer.py
+    test_sequence_analysis.py
   consumer/
     test_idempotency.py
   schema/

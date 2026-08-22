@@ -8,6 +8,7 @@ class EventRepository:
         record = EventRecord(
             event_id=event.event_id,
             device_id=event.device_id,
+            sequence_id=event.sequence_id,
             event_time=event.event_time,
             temperature=event.temperature,
             humidity=event.humidity,

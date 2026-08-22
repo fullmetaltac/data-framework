@@ -22,6 +22,7 @@ class EventGenerator:
 
         self.invalid_probability = invalid_probability
         self._last_event: Event | None = None
+        self._sequence_counters: dict[str, int] = {}
 
     def generate(self) -> Event:
         event = self._generate_valid_event()
@@ -33,14 +34,21 @@ class EventGenerator:
         return event
 
     def _generate_valid_event(self) -> Event:
+        device_id = f"sensor-{random.randint(1, 20):02d}"
         return Event(
-            device_id=f"sensor-{random.randint(1, 20):02d}",
+            device_id=device_id,
+            sequence_id=self._next_sequence_id(device_id),
             event_time=datetime.now(timezone.utc),
             temperature=round(random.uniform(-10.0, 40.0), 1),
             humidity=round(random.uniform(20.0, 90.0), 1),
             pressure=round(random.uniform(980.0, 1040.0), 1),
             status="OK",
         )
+
+    def _next_sequence_id(self, device_id: str) -> int:
+        sequence_id = self._sequence_counters.get(device_id, 0) + 1
+        self._sequence_counters[device_id] = sequence_id
+        return sequence_id
 
     def _make_invalid(self, event: Event) -> Event:
         error_types = list(InvalidEventType)
