@@ -9,6 +9,7 @@ def test_events_table_has_expected_columns(db_connection: Connection) -> None:
 
     assert set(columns) == {
         "id",
+        "event_id",
         "device_id",
         "event_time",
         "temperature",
@@ -25,7 +26,7 @@ def test_required_columns_are_not_nullable(db_connection: Connection) -> None:
         for column in inspect(db_connection).get_columns("events")
     }
 
-    for column_name in ("id", "device_id", "event_time", "created_at"):
+    for column_name in ("id", "event_id", "device_id", "event_time", "created_at"):
         assert not columns[column_name]["nullable"], (
             f"events.{column_name} must be NOT NULL"
         )

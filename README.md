@@ -81,6 +81,41 @@ expect(table="events").column("temperature").to_be_between(
 
 If no connection is supplied, `run()` uses the configured `DATABASE_URL`.
 
+## End-to-End Reconciliation
+
+Data quality checks confirm that the rows in PostgreSQL are well-formed, but they
+cannot tell you whether events were lost between Kafka and PostgreSQL. Every
+`Event` carries a unique `event_id` (a UUID) precisely so that can be verified.
+
+`src.quality.reconcile` reads every `event_id` published to the `events` Kafka
+topic (the source of truth) and every `event_id` stored in the `events` table
+(the target), then compares the two sets:
+
+```powershell
+python -m src.quality.reconcile
+```
+
+```text
+Source events: 1000
+Target events: 997
+
+Missing:    3
+Duplicates: 2
+Unexpected: 1
+```
+
+- **Missing** — event IDs seen on Kafka but never stored (for example, events the
+  consumer rejected for failing validation).
+- **Duplicates** — event IDs published to Kafka more than once (the generator's
+  `duplicate` defect resends the same `event_id`; the consumer relies on the
+  `events.event_id` unique constraint to avoid storing it twice).
+- **Unexpected** — event IDs present in PostgreSQL but never seen on Kafka,
+  which should never happen and indicates a bug if it does.
+
+The script exits with status `1` if anything is missing or unexpected. The
+comparison logic itself (`src.quality.reconciliation.reconcile`) is pure and unit
+tested in `tests/unit/test_reconciliation.py` without requiring any infrastructure.
+
 ## 2. Start the Infrastructure
 
 Start PostgreSQL, Kafka, Kafka UI, and MinIO:
@@ -256,9 +291,16 @@ src/
     database_models.py # SQLAlchemy model for the events table
     repository.py      # Persisting events
     main.py            # Consumer entry point
+  quality/
+    checks.py          # Declarative Check/CheckResult building blocks
+    dsl.py             # Table/expect DSL built on top of checks.py
+    reconciliation.py  # Pure source-vs-target event_id comparison
+    reconcile.py       # Reads Kafka + PostgreSQL and runs reconciliation
 tests/
   unit/
     test_generator.py
+    test_quality_dsl.py
+    test_reconciliation.py
   schema/
     test_columns.py
   quality/

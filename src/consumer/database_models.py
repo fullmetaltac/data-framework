@@ -1,7 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, Numeric, String, func
+from sqlalchemy import BigInteger, DateTime, Numeric, String, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -13,6 +14,7 @@ class EventRecord(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    event_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, unique=True)
     device_id: Mapped[str] = mapped_column(String(100), nullable=False)
     event_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     temperature: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))

@@ -1,4 +1,5 @@
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from src.common.config import (
     KAFKA_BOOTSTRAP_SERVERS,
@@ -31,7 +32,13 @@ def main() -> None:
                 kafka_consumer.commit()
                 continue
 
-            repository.save(event)
+            try:
+                repository.save(event)
+            except IntegrityError:
+                print(f"Duplicate event skipped: {event.event_id}")
+                kafka_consumer.commit()
+                continue
+
             kafka_consumer.commit()
             print(f"Saved event: {event.model_dump_json()}")
     except KeyboardInterrupt:
