@@ -2,6 +2,7 @@ import os
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "events")
+KAFKA_DLQ_TOPIC = os.getenv("KAFKA_DLQ_TOPIC", "events-dlq")
 KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "events-consumer")
 GENERATOR_INVALID_PROBABILITY = float(
     os.getenv("GENERATOR_INVALID_PROBABILITY", "0.05")

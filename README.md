@@ -4,11 +4,18 @@ A small data pipeline for generating and storing events:
 
 ```text
 Generator -> Kafka -> Consumer -> PostgreSQL
+                          |
+                          +--> events-dlq (invalid messages)
 ```
 
 The generator creates events and sends them to Kafka. The consumer receives the
 messages, validates them using the Pydantic `Event` model, and stores them in the
-`events` table through SQLAlchemy.
+`events` table through SQLAlchemy. A message that fails validation is never
+silently dropped: it is published to the `events-dlq` topic instead, alongside
+the validation error, a timestamp, and the source topic, so it can be inspected
+or replayed later. See [End-to-End Reconciliation](#end-to-end-reconciliation)
+and [Dead-Letter Queue](#dead-letter-queue) below for how the pipeline verifies
+that no event is lost.
 
 ## Requirements
 
@@ -115,6 +122,31 @@ Unexpected: 1
 The script exits with status `1` if anything is missing or unexpected. The
 comparison logic itself (`src.quality.reconciliation.reconcile`) is pure and unit
 tested in `tests/unit/test_reconciliation.py` without requiring any infrastructure.
+
+## Dead-Letter Queue
+
+A message that fails `Event` validation (a poison message) is published to the
+`events-dlq` Kafka topic instead of being dropped:
+
+```json
+{
+  "original_message": { "device_id": "", "temperature": null, "..." : "..." },
+  "error": "1 validation error for Event\ntemperature\n  Input should be a valid number ...",
+  "failed_at": "2026-08-22T19:36:20.595518+00:00",
+  "source_topic": "events"
+}
+```
+
+This keeps the raw payload, the reason it failed, and enough metadata to
+inspect the message in Kafka UI or replay it after a fix, instead of losing it
+at the validation boundary. The consumer still commits the original topic
+offset after routing a message to the DLQ, so a poison message never blocks
+the pipeline.
+
+`src.consumer.main.process_message` contains the routing decision (save /
+duplicate / send to DLQ) as a plain function that takes a repository and a DLQ
+producer as arguments, so it is unit tested with mocks in
+`tests/unit/test_consumer.py` without needing Kafka or PostgreSQL.
 
 ## 2. Start the Infrastructure
 
@@ -235,6 +267,7 @@ The application uses the following default values:
 | --- | --- |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
 | `KAFKA_TOPIC` | `events` |
+| `KAFKA_DLQ_TOPIC` | `events-dlq` |
 | `KAFKA_CONSUMER_GROUP` | `events-consumer` |
 | `GENERATOR_INVALID_PROBABILITY` | `0.05` |
 | `DATABASE_URL` | `postgresql+psycopg://postgres:postgres@localhost:5432/dataqa` |
@@ -290,7 +323,8 @@ src/
     kafka_consumer.py  # Receiving messages from Kafka
     database_models.py # SQLAlchemy model for the events table
     repository.py      # Persisting events
-    main.py            # Consumer entry point
+    dlq.py             # Publishing invalid messages to events-dlq
+    main.py            # Consumer entry point / process_message routing
   quality/
     checks.py          # Declarative Check/CheckResult building blocks
     dsl.py             # Table/expect DSL built on top of checks.py
@@ -301,6 +335,7 @@ tests/
     test_generator.py
     test_quality_dsl.py
     test_reconciliation.py
+    test_consumer.py
   schema/
     test_columns.py
   quality/
