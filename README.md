@@ -148,6 +148,36 @@ duplicate / send to DLQ) as a plain function that takes a repository and a DLQ
 producer as arguments, so it is unit tested with mocks in
 `tests/unit/test_consumer.py` without needing Kafka or PostgreSQL.
 
+## Crash Recovery and Idempotency
+
+The consumer loop in `src.consumer.main.main` does the DB write before the
+Kafka offset commit:
+
+```python
+process_message(message, ...)  # writes to PostgreSQL
+kafka_consumer.commit()        # only then advances the Kafka offset
+```
+
+That ordering is deliberate, but it has a consequence: if the process crashes
+*after* the write and *before* the commit, Kafka still thinks the message is
+unacknowledged. On restart, the consumer group is reassigned the same offset
+and receives that message again — Kafka's at-least-once delivery guarantee.
+Without protection, the same event would be written to PostgreSQL twice.
+
+This is exactly what `events.event_id UUID NOT NULL UNIQUE` is for. When the
+redelivered message reaches `process_message` a second time, `repository.save`
+raises `IntegrityError` on the unique constraint, which is caught and treated
+as a duplicate rather than crashing the consumer or double-counting the event:
+
+```python
+consumer.process_message(event)  # -> "saved",    1 row in PostgreSQL
+consumer.process_message(event)  # -> "duplicate", still 1 row in PostgreSQL
+```
+
+`tests/consumer/test_idempotency.py` exercises this against a real PostgreSQL
+connection: it calls `process_message` with the same event twice and asserts
+`events` still contains exactly one row for that `event_id`.
+
 ## 2. Start the Infrastructure
 
 Start PostgreSQL, Kafka, Kafka UI, and MinIO:
@@ -336,6 +366,8 @@ tests/
     test_quality_dsl.py
     test_reconciliation.py
     test_consumer.py
+  consumer/
+    test_idempotency.py
   schema/
     test_columns.py
   quality/
