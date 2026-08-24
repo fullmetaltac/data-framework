@@ -18,9 +18,9 @@ class ColumnExpectation:
     def to_be_between(
         self, minimum: object, maximum: object, connection: Connection | None = None
     ) -> CheckResult:
-        return Check.range(
-            self.column_name, minimum, maximum, table=self.table
-        ).run(connection)
+        return Check.range(self.column_name, minimum, maximum, table=self.table).run(
+            connection
+        )
 
 
 @dataclass

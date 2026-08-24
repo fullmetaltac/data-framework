@@ -38,11 +38,15 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-Install the dependencies:
+Install the dependencies (runtime plus the pytest/black/ruff/mypy tooling
+used below):
 
 ```powershell
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
+
+Only the runtime dependencies (no dev tooling) live in `requirements.txt`,
+which `requirements-dev.txt` includes automatically.
 
 Run the tests:
 
@@ -60,6 +64,22 @@ Schema, quality, and business tests query PostgreSQL and require the
 infrastructure to be running. They verify the `events` table structure,
 temperature completeness and range, `(device_id, event_time)` uniqueness,
 five-minute freshness, device count, and allowed statuses.
+
+## Code Quality
+
+The codebase is formatted with `black`, linted with `ruff`, and type-checked
+with `mypy` (`src` only — tests lean on `unittest.mock.Mock`, which mypy
+can't type-check meaningfully against concrete parameter types). All three
+are configured in `pyproject.toml`:
+
+```powershell
+python -m black --check src tests
+python -m ruff check src tests
+python -m mypy src
+```
+
+Run `python -m black src tests` to apply formatting instead of just checking
+it.
 
 ## Declarative Data Quality API
 
@@ -274,16 +294,18 @@ topic. By default, 5% of events are intentionally corrupted. Possible defects
 include null or out-of-range measurements, an empty device ID, future or old
 timestamps, and duplicates.
 
-The generator terminal will display the created events:
+The generator terminal will display the created events, logged through the
+standard library `logging` module (configured in
+`src/common/logging_config.py`):
 
 ```text
-{"device_id":"device-1","event_time":"...","temperature":...}
+... INFO src.generator.main: {"device_id":"device-1","event_time":"...","temperature":...}
 ```
 
 The consumer terminal will display a confirmation after each successful insert:
 
 ```text
-Saved event: {"device_id":"device-1", ...}
+... INFO src.consumer.main: Saved event: {"device_id":"device-1", ...}
 ```
 
 This confirms that the message was received from Kafka and stored in PostgreSQL.
@@ -387,6 +409,7 @@ src/
   common/
     config.py          # Application configuration
     database.py        # SQLAlchemy engine and sessions
+    logging_config.py  # Shared logging setup for the entry points
     models.py          # Shared Pydantic Event model
   generator/
     generator.py       # Event generation
@@ -425,3 +448,7 @@ tests/
     test_device_count.py
     test_status_distribution.py
 ```
+
+## License
+
+[MIT](LICENSE)

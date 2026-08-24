@@ -1,11 +1,11 @@
 import random
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 
 from src.common.models import Event
 
 
-class InvalidEventType(str, Enum):
+class InvalidEventType(StrEnum):
     NULL_TEMPERATURE = "null_temperature"
     HIGH_HUMIDITY = "high_humidity"
     LOW_TEMPERATURE = "low_temperature"
@@ -38,7 +38,7 @@ class EventGenerator:
         return Event(
             device_id=device_id,
             sequence_id=self._next_sequence_id(device_id),
-            event_time=datetime.now(timezone.utc),
+            event_time=datetime.now(UTC),
             temperature=round(random.uniform(-10.0, 40.0), 1),
             humidity=round(random.uniform(20.0, 90.0), 1),
             pressure=round(random.uniform(980.0, 1040.0), 1),

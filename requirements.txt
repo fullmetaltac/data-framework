@@ -1,5 +1,3 @@
-black==26.5.1
-pytest==9.1.1
 pydantic==2.12.5
 SQLAlchemy==2.0.45
 kafka-python==2.2.15

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from src.common.config import (
@@ -5,12 +6,17 @@ from src.common.config import (
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC,
 )
+from src.common.logging_config import configure_logging
 
 from .generator import EventGenerator
 from .producer import EventProducer
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
+    configure_logging()
+
     generator = EventGenerator(
         invalid_probability=GENERATOR_INVALID_PROBABILITY,
     )
@@ -23,10 +29,10 @@ def main() -> None:
         while True:
             event = generator.generate()
             producer.send(event)
-            print(event.model_dump_json())
+            logger.info(event.model_dump_json())
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Generator stopped.")
+        logger.info("Generator stopped.")
     finally:
         producer.close()
 

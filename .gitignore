@@ -1,2 +1,26 @@
+# Virtual environments
+venv/
+.venv/
+
+# Byte-compiled files
+__pycache__/
+*.pyc
+
+# Test / tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Packaging
+*.egg-info/
+build/
+dist/
+
+# Environment variables
+.env
+
+# Editor / tooling
 .vscode
-__pycache__
+.claude/

@@ -48,15 +48,11 @@ def test_each_invalid_event_type(
     elif error_type == InvalidEventType.EMPTY_DEVICE_ID:
         assert invalid_event.device_id == ""
     elif error_type == InvalidEventType.FUTURE_EVENT:
-        assert invalid_event.event_time == (
-            valid_event.event_time + timedelta(days=2)
-        )
+        assert invalid_event.event_time == (valid_event.event_time + timedelta(days=2))
     elif error_type == InvalidEventType.DUPLICATE:
         assert invalid_event == generator._last_event
     else:
-        assert invalid_event.event_time == (
-            valid_event.event_time - timedelta(days=7)
-        )
+        assert invalid_event.event_time == (valid_event.event_time - timedelta(days=7))
 
 
 def test_duplicate_repeats_previous_event(monkeypatch: MonkeyPatch) -> None:

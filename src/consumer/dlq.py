@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from kafka import KafkaProducer
@@ -19,7 +19,7 @@ class DeadLetterProducer:
         payload = {
             "original_message": original_message,
             "error": error,
-            "failed_at": datetime.now(timezone.utc).isoformat(),
+            "failed_at": datetime.now(UTC).isoformat(),
             "source_topic": source_topic,
         }
         self._producer.send(self._topic, value=payload).get(timeout=10)

@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from pydantic import ValidationError
@@ -9,10 +10,13 @@ from src.common.config import (
     KAFKA_DLQ_TOPIC,
     KAFKA_TOPIC,
 )
+from src.common.logging_config import configure_logging
 from src.common.models import Event
 from src.consumer.dlq import DeadLetterProducer
 from src.consumer.kafka_consumer import EventKafkaConsumer
 from src.consumer.repository import EventRepository
+
+logger = logging.getLogger(__name__)
 
 
 def process_message(
@@ -28,20 +32,22 @@ def process_message(
         dlq_producer.send(
             original_message=message, error=str(error), source_topic=source_topic
         )
-        print(f"Invalid event sent to DLQ: {error}")
+        logger.warning("Invalid event sent to DLQ: %s", error)
         return "invalid"
 
     try:
         repository.save(event)
     except IntegrityError:
-        print(f"Duplicate event skipped: {event.event_id}")
+        logger.info("Duplicate event skipped: %s", event.event_id)
         return "duplicate"
 
-    print(f"Saved event: {event.model_dump_json()}")
+    logger.info("Saved event: %s", event.model_dump_json())
     return "saved"
 
 
 def main() -> None:
+    configure_logging()
+
     kafka_consumer = EventKafkaConsumer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         topic=KAFKA_TOPIC,
@@ -66,7 +72,7 @@ def main() -> None:
             )
             kafka_consumer.commit()
     except KeyboardInterrupt:
-        print("Consumer stopped.")
+        logger.info("Consumer stopped.")
     finally:
         kafka_consumer.close()
         dlq_producer.close()

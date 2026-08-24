@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 from sqlalchemy import Connection, text
@@ -16,7 +16,7 @@ def test_processing_the_same_event_twice_stores_it_once(
     event = Event(
         device_id="idempotency-test-sensor",
         sequence_id=1,
-        event_time=datetime.now(timezone.utc),
+        event_time=datetime.now(UTC),
         temperature=21.0,
         humidity=45.0,
         pressure=1005.0,
